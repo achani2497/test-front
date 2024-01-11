@@ -1,52 +1,62 @@
-import { Suspense, lazy, useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { PRIORITY, STATUS } from "../../constants/dictionaries";
-import { useFetchTests } from '../../hooks/useFetchTests';
-import { createTest, destroyTest, modifyTest } from '../../services/testsService';
+import { createTest, destroyTest, getAllTests, modifyTest } from '../../services/testsService';
 import { ActionsButton } from '../ActionsButton';
+import { TestForm } from '../Form/TestForm';
 import { Modal } from '../Modal';
 import { Table, TableBody, TableCell, TableHead, TableHeader } from './TableParts';
 
-const TestForm = lazy(() => import('../Form/TestForm'))
-
 export const TableComponent = () => {
   const [modalData, setModalData] = useState({ open: false, test: null, isEditing: false });
-  const { tests, refreshTests, isLoading, setIsLoading } = useFetchTests();
+  const [tests, setTests] = useState([]);
+  const [isLoading, setIsLoading] = useState(true)
+
+  const getTests = useCallback(() => {
+    getAllTests().then((data) => {
+      setTests(data);
+      setIsLoading(false)
+    });
+  }, []);
+
+  useEffect(() => {
+    getTests();
+  }, [getTests]);
 
   const addTest = useCallback((newTest) => {
     createTest(newTest)
       .then(() => {
         setIsLoading(true)
-        refreshTests();
+        getTests();
       })
       .catch(e => console.log(e))
-  }, [refreshTests]);
+  }, [getTests]);
 
   const editTest = useCallback((test) => {
     modifyTest(test).then(() => {
       setIsLoading(true)
-      refreshTests();
+      getTests();
     }).catch(e => console.log(e))
-  }, [refreshTests])
+  }, [getTests])
 
   const deleteTest = useCallback((test_id) => {
     setIsLoading(true)
     destroyTest({ test_id }).then(() => {
-      refreshTests()
+      getTests()
     })
       .catch(e => console.log(e))
-  }, [refreshTests])
+  }, [getTests])
 
   const handleEdit = useCallback((test) => {
     setModalData({ open: true, test, isEditing: true });
-  }, [refreshTests]);
+  }, [getTests]);
 
   const closeModal = useCallback(() => {
     setModalData({ open: false, test: null, isEditing: false });
-  }, [refreshTests]);
+  }, [getTests]);
 
   const openModal = useCallback(() => {
     setModalData({ open: true, test: null, isEditing: false });
-  }, [refreshTests]);
+  }, [getTests]);
 
   return (
     <div className='flex flex-col gap-4'>
@@ -83,16 +93,14 @@ export const TableComponent = () => {
         </Table>
       </div>
       <Modal open={modalData.open} setClose={closeModal}>
-        <Suspense fallback={'Cargandoooo . . .'}>
-          <div className="bg-black px-6 py-6 flex flex-col gap-4 text-start">
-            <TestForm
-              setClose={closeModal}
-              test={modalData.test}
-              submitAction={modalData.isEditing ? editTest : addTest}
-              isEditing={modalData.isEditing}
-            />
-          </div>
-        </Suspense>
+        <div className="bg-black px-6 py-6 flex flex-col gap-4 text-start">
+          <TestForm
+            setClose={closeModal}
+            test={modalData.test}
+            submitAction={modalData.isEditing ? editTest : addTest}
+            isEditing={modalData.isEditing}
+          />
+        </div>
       </Modal>
     </div>
   )
